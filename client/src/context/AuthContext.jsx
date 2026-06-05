@@ -8,8 +8,8 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(localStorage.getItem("token"))
 
-  const login = async (email, password) => {
-    const { data } = await api.post("/api/auth/login", { email, password })
+  const login = async (identifier, password) => {
+    const { data } = await api.post("/api/auth/login", { identifier, password })
     localStorage.setItem("token", data.token)
     setToken(data.token)
     setUser(data.user)

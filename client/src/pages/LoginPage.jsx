@@ -4,14 +4,14 @@ import { useAuth } from "../context/AuthContext"
 
 function LoginPage() {
   const { login } = useAuth()
-  const [email, setEmail] = useState("")
+  const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      await login(email, password)
+      await login(identifier, password)
     } catch (err) {
       setError(err.response?.data?.message || "Login failed")
     }
@@ -23,10 +23,10 @@ function LoginPage() {
       {error && <p style={{ color: "red" }}>{error}</p>}
       <form onSubmit={handleSubmit}>
         <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          type="text"
+          placeholder="Email or Username"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
         />
         <input
           type="password"
