@@ -1,7 +1,7 @@
 import { Server } from "socket.io"
 import { createAdapter } from "@socket.io/redis-adapter"
 import env from "../config/env.js"
-import { pubClient, subClient } from "../config/redis.js"
+import { pubClient, subClient, usingRedis } from "../config/redis.js"
 import Conversation from "../models/Conversation.js"
 import logger from "../utils/logger.js"
 import { setIO, rooms } from "./io.js"
@@ -15,7 +15,8 @@ export const initSocket = (httpServer) => {
     cors: { origin: env.CLIENT_ORIGINS },
     // The Redis adapter relays broadcasts between server instances, so a
     // message sent to a user connected to instance A reaches a user on B.
-    adapter: createAdapter(pubClient, subClient),
+    // Without Redis (dev only) the default in-memory adapter is used.
+    ...(usingRedis && { adapter: createAdapter(pubClient, subClient) }),
   })
 
   io.use(socketAuth)

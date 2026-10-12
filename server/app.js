@@ -4,7 +4,7 @@ import helmet from "helmet"
 import mongoose from "mongoose"
 import { pinoHttp } from "pino-http"
 import env from "./config/env.js"
-import { redis } from "./config/redis.js"
+import { redis, usingRedis } from "./config/redis.js"
 import logger from "./utils/logger.js"
 import { apiLimiter } from "./middleware/rateLimiter.js"
 import notFound from "./middleware/notFound.js"
@@ -33,8 +33,8 @@ app.use(
 
 app.get("/api/v1/health", (_req, res) => {
   const mongo = mongoose.connection.readyState === 1 ? "up" : "down"
-  const redisStatus = redis.isReady ? "up" : "down"
-  const healthy = mongo === "up" && redisStatus === "up"
+  const redisStatus = !usingRedis ? "in-memory" : redis.isReady ? "up" : "down"
+  const healthy = mongo === "up" && redisStatus !== "down"
 
   res.status(healthy ? 200 : 503).json({
     status: healthy ? "ok" : "degraded",

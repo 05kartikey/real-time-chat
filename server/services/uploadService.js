@@ -1,10 +1,14 @@
-import cloudinary from "../config/cloudinary.js"
+import cloudinary, { cloudinaryEnabled } from "../config/cloudinary.js"
+import ApiError from "../utils/ApiError.js"
 import logger from "../utils/logger.js"
 
 // Files are held in memory by multer and streamed straight to Cloudinary,
 // so nothing touches the server's disk.
 export const uploadBuffer = (buffer, options) =>
   new Promise((resolve, reject) => {
+    if (!cloudinaryEnabled) {
+      return reject(new ApiError(503, "File uploads are disabled on this server (Cloudinary isn't configured)"))
+    }
     const stream = cloudinary.uploader.upload_stream(options, (err, result) => {
       if (err) reject(err)
       else resolve(result)
@@ -34,7 +38,7 @@ export const uploadAttachment = (file, conversationId) => {
 
 // Best-effort: a failed cleanup shouldn't fail the user's request.
 export const destroy = async (publicId, resourceType = "image") => {
-  if (!publicId) return
+  if (!publicId || !cloudinaryEnabled) return
   try {
     await cloudinary.uploader.destroy(publicId, { resource_type: resourceType })
   } catch (err) {

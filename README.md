@@ -202,6 +202,8 @@ The connection authenticates with `io({ auth: { token } })`. A rejected handshak
 - A Redis instance ([Redis Cloud](https://redis.io/cloud/) or [Upstash](https://upstash.com/) free tier, or a local Redis/Memurai)
 - A [Cloudinary](https://cloudinary.com/) account (free tier)
 
+> **Quick start:** only `MONGO_URI` and `JWT_SECRET` are required in development. Without `REDIS_URL` the server uses in-memory stores (one instance only); without Cloudinary keys, uploads are disabled. Both are required when `NODE_ENV=production`.
+
 ### Setup
 
 ```bash

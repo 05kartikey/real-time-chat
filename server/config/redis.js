@@ -1,16 +1,20 @@
 import { createClient } from "redis"
 import env from "./env.js"
 import logger from "../utils/logger.js"
+import { createMemoryRedis } from "./memoryRedis.js"
 
-// General-purpose client: presence, rate limiting.
-export const redis = createClient({ url: env.REDIS_URL })
+export const usingRedis = env.hasRedis
+
+// General-purpose client: presence, rate limiting. Without REDIS_URL (dev
+// only) an in-memory stand-in with the same API is used instead.
+export const redis = usingRedis ? createClient({ url: env.REDIS_URL }) : createMemoryRedis()
 
 // A connection in subscriber mode cannot run other commands, so the
 // Socket.IO adapter needs its own dedicated pub/sub pair.
-export const pubClient = redis.duplicate()
-export const subClient = redis.duplicate()
+export const pubClient = usingRedis ? redis.duplicate() : null
+export const subClient = usingRedis ? redis.duplicate() : null
 
-const clients = { redis, pubClient, subClient }
+const clients = usingRedis ? { redis, pubClient, subClient } : {}
 
 for (const [name, client] of Object.entries(clients)) {
   client.on("error", (err) => logger.error({ err }, `Redis (${name}) error`))
@@ -24,6 +28,11 @@ export const redisReady = new Promise((resolve) => {
 })
 
 export const connectRedis = async () => {
+  if (!usingRedis) {
+    logger.warn("REDIS_URL not set: using in-memory stores (fine for development, single instance only)")
+    markReady()
+    return
+  }
   await Promise.all(Object.values(clients).map((client) => client.connect()))
   markReady()
   logger.info("Redis connected")
