@@ -1,37 +1,73 @@
 import mongoose from "mongoose"
 
+const attachmentSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true },
+    publicId: { type: String, required: true },
+    resourceType: { type: String, required: true }, // Cloudinary needs it to delete the file
+    name: { type: String, required: true },
+    size: { type: Number, required: true },
+    mimeType: { type: String, required: true },
+  },
+  { _id: false }
+)
+
 const messageSchema = new mongoose.Schema(
   {
-    content: {
-      type: String,
+    conversation: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Conversation",
       required: true,
-      trim: true,
     },
+    // Absent for system messages ("Alice added Bob")
     sender: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-    },
-    room: {
-      type: String,
-      required: true,
     },
     type: {
       type: String,
-      enum: ["text", "image", "file"],
+      enum: ["text", "image", "file", "system"],
       default: "text",
     },
-    readBy: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+    content: {
+      type: String,
+      trim: true,
+      maxlength: 4000,
+      default: "",
+    },
+    attachment: attachmentSchema,
+    editedAt: Date,
+    // Soft delete: the message keeps its place in history but loses its content
+    deletedAt: Date,
   },
   { timestamps: true }
 )
 
-messageSchema.index({ room: 1, createdAt: -1 })
+// ObjectIds increase over time, so { conversation, _id } doubles as a
+// chronological index for cursor-based pagination.
+messageSchema.index({ conversation: 1, _id: -1 })
+
+messageSchema.set("toJSON", {
+  // Plain strings instead of ObjectId instances: payloads also travel through
+  // the Socket.IO Redis adapter, which can't encode class instances.
+  flattenObjectIds: true,
+  transform: (_doc, ret) => {
+    // Transforms can run more than once on populated docs, so keep them idempotent
+    if (ret._id) ret.id = ret._id
+    delete ret._id
+    delete ret.__v
+    if (ret.attachment) {
+      delete ret.attachment.publicId
+      delete ret.attachment.resourceType
+    }
+    // Never send the content of a deleted message
+    if (ret.deletedAt) {
+      ret.content = ""
+      delete ret.attachment
+    }
+    return ret
+  },
+})
 
 const Message = mongoose.model("Message", messageSchema)
 

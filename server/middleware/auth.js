@@ -1,23 +1,11 @@
-import jwt from "jsonwebtoken"
-import User from "../models/User.js"
+import { authenticateToken } from "../services/authService.js"
 
-const protect = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization
+const protect = async (req, _res, next) => {
+  const header = req.headers.authorization ?? ""
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Not authorized, no token" })
-    }
-
-    const token = authHeader.split(" ")[1]
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    req.user = await User.findById(decoded.userId).select("-password")
-
-    next()
-  } catch (err) {
-    res.status(401).json({ message: "Not authorized, invalid token" })
-  }
+  req.user = await authenticateToken(token)
+  next()
 }
 
 export default protect
