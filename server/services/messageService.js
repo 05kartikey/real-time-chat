@@ -14,8 +14,15 @@ const broadcast = (event, message) => {
 
 // Saves a message, makes it the conversation's latest, and returns a plain
 // object ready to send over HTTP or Socket.IO.
-const persist = async ({ conversationId, senderId, type, content = "", attachment }) => {
-  const message = await Message.create({ conversation: conversationId, sender: senderId, type, content, attachment })
+const persist = async ({ conversationId, senderId, type, content = "", attachment, clientId }) => {
+  const message = await Message.create({
+    conversation: conversationId,
+    sender: senderId,
+    type,
+    content,
+    attachment,
+    clientId,
+  })
 
   const update = { $set: { lastMessage: message._id } }
   const options = {}
@@ -34,12 +41,18 @@ const persist = async ({ conversationId, senderId, type, content = "", attachmen
 export const sendText = async ({ senderId, conversationId, content, clientId }) => {
   await assertIsMember(conversationId, senderId)
 
-  const message = await persist({ conversationId, senderId, type: "text", content })
-  // clientId lets the sender's tabs swap their optimistic copy for this one
-  const payload = { ...message, clientId }
+  let message
+  try {
+    message = await persist({ conversationId, senderId, type: "text", content, clientId })
+  } catch (err) {
+    // A retry of a message we already saved: return the original instead
+    if (err.code !== 11000 || !clientId) throw err
+    const existing = await Message.findOne({ sender: senderId, clientId }).populate("sender", SENDER_FIELDS)
+    return existing.toJSON()
+  }
 
-  broadcast("message:new", payload)
-  return payload
+  broadcast("message:new", message)
+  return message
 }
 
 export const sendAttachment = async ({ senderId, conversationId, file, content, clientId }) => {
@@ -64,6 +77,7 @@ export const sendAttachment = async ({ senderId, conversationId, file, content, 
       type: file.mimetype.startsWith("image/") ? "image" : "file",
       content,
       attachment,
+      clientId,
     })
   } catch (err) {
     // Don't leave an orphaned file behind if the database write fails
@@ -71,9 +85,8 @@ export const sendAttachment = async ({ senderId, conversationId, file, content, 
     throw err
   }
 
-  const payload = { ...message, clientId }
-  broadcast("message:new", payload)
-  return payload
+  broadcast("message:new", message)
+  return message
 }
 
 export const sendSystem = async (conversationId, content) => {

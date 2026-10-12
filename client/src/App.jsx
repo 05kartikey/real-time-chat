@@ -1,19 +1,37 @@
-import { Routes, Route, Navigate } from "react-router-dom"
-import { useAuth } from "./context/AuthContext"
-import LoginPage from "./pages/LoginPage"
-import RegisterPage from "./pages/RegisterPage"
-import ChatPage from "./pages/ChatPage"
+import { lazy, Suspense } from "react"
+import { Navigate, Route, Routes } from "react-router-dom"
+import ProtectedRoute from "./routes/ProtectedRoute"
+import PublicRoute from "./routes/PublicRoute"
+import { FullPageSpinner } from "./components/ui/Spinner"
+
+// Route-level code splitting: each page is downloaded only when first visited
+const AppShell = lazy(() => import("./components/layout/AppShell"))
+const LoginPage = lazy(() => import("./pages/LoginPage"))
+const RegisterPage = lazy(() => import("./pages/RegisterPage"))
+const ChatPage = lazy(() => import("./pages/ChatPage"))
+const ProfilePage = lazy(() => import("./pages/ProfilePage"))
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage"))
 
 function App() {
-  const { user } = useAuth()
-
   return (
-    <Routes>
-      <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/chat" />} />
-      <Route path="/register" element={!user ? <RegisterPage /> : <Navigate to="/chat" />} />
-      <Route path="/chat" element={user ? <ChatPage /> : <Navigate to="/login" />} />
-      <Route path="*" element={<Navigate to={user ? "/chat" : "/login"} />} />
-    </Routes>
+    <Suspense fallback={<FullPageSpinner />}>
+      <Routes>
+        <Route element={<PublicRoute />}>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+        </Route>
+
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppShell />}>
+            <Route path="/chat/:conversationId?" element={<ChatPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
+        </Route>
+
+        <Route path="/" element={<Navigate to="/chat" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </Suspense>
   )
 }
 

@@ -1,43 +1,84 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import { useAuth } from "../context/AuthContext"
+import useAuth from "../hooks/useAuth"
+import { getErrorMessage, getFieldErrors } from "../services/api"
+import AuthLayout from "../components/layout/AuthLayout"
+import Input from "../components/ui/Input"
+import Button from "../components/ui/Button"
 
 function LoginPage() {
   const { login } = useAuth()
-  const [identifier, setIdentifier] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
+  const [form, setForm] = useState({ identifier: "", password: "" })
+  const [errors, setErrors] = useState({})
+  const [formError, setFormError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const update = (field) => (e) => {
+    setForm((f) => ({ ...f, [field]: e.target.value }))
+    setErrors((errs) => ({ ...errs, [field]: undefined }))
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    const nextErrors = {
+      identifier: form.identifier.trim() ? undefined : "Enter your email or username",
+      password: form.password ? undefined : "Enter your password",
+    }
+    setErrors(nextErrors)
+    if (Object.values(nextErrors).some(Boolean)) return
+
+    setIsSubmitting(true)
+    setFormError("")
     try {
-      await login(identifier, password)
+      // On success the user is set and PublicRoute redirects to /chat
+      await login(form.identifier.trim(), form.password)
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed")
+      setErrors(getFieldErrors(err))
+      setFormError(getErrorMessage(err, "Login failed"))
+      setIsSubmitting(false)
     }
   }
 
   return (
-    <div>
-      <h2>Login</h2>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Email or Username"
-          value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
+    <AuthLayout
+      title="Welcome back"
+      subtitle="Sign in to continue chatting"
+      footer={
+        <>
+          No account?{" "}
+          <Link to="/register" className="font-medium text-indigo-600 hover:underline">
+            Create one
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        {formError && (
+          <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            {formError}
+          </p>
+        )}
+        <Input
+          label="Email or username"
+          value={form.identifier}
+          onChange={update("identifier")}
+          error={errors.identifier}
+          autoComplete="username"
+          autoFocus
         />
-        <input
+        <Input
+          label="Password"
           type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          value={form.password}
+          onChange={update("password")}
+          error={errors.password}
+          autoComplete="current-password"
         />
-        <button type="submit">Login</button>
+        <Button type="submit" loading={isSubmitting} className="w-full">
+          Sign in
+        </Button>
       </form>
-      <p>No account? <Link to="/register">Register</Link></p>
-    </div>
+    </AuthLayout>
   )
 }
 
