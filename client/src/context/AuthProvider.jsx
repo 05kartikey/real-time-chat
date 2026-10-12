@@ -46,32 +46,6 @@ export function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
-  // All tabs share one localStorage token. If another tab logs in as someone
-  // else or logs out, follow it; otherwise this tab would keep showing the old
-  // user while its requests carry the new user's token.
-  useEffect(() => {
-    const onStorage = (e) => {
-      if (e.key !== tokenStorage.key) return
-
-      if (!e.newValue) {
-        setUser(null)
-        toast("You were logged out in another tab", { id: "session-sync" })
-        return
-      }
-
-      authApi
-        .me()
-        .then((me) => {
-          setUser(me)
-          toast(`Now signed in as ${me.username} (changed in another tab)`, { id: "session-sync" })
-        })
-        .catch(() => setUser(null))
-    }
-
-    window.addEventListener("storage", onStorage)
-    return () => window.removeEventListener("storage", onStorage)
-  }, [])
-
   // Any 401 on an authenticated request means the token expired or was revoked
   useEffect(() => {
     setUnauthorizedHandler(() => {
