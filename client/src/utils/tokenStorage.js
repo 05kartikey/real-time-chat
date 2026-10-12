@@ -4,6 +4,7 @@
 const KEY = "token"
 
 const tokenStorage = {
+  key: KEY,
   get() {
     try {
       return localStorage.getItem(KEY)

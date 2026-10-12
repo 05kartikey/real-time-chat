@@ -3,6 +3,7 @@ import { WifiOff } from "lucide-react"
 import { SocketProvider } from "../../context/SocketProvider"
 import { ChatProvider } from "../../context/ChatProvider"
 import useSocket from "../../hooks/useSocket"
+import useAuth from "../../hooks/useAuth"
 
 function ConnectionBanner() {
   const { isConnected, hasConnected } = useSocket()
@@ -20,8 +21,13 @@ function ConnectionBanner() {
 // Everything behind login shares one socket connection and one chat store,
 // so moving between the chat and profile pages keeps both alive.
 function AppShell() {
+  const { user } = useAuth()
+
+  // key: if the signed-in user changes (e.g. a login in another tab), remount
+  // everything so the socket reconnects with the new token and no chat state
+  // from the previous user survives.
   return (
-    <SocketProvider>
+    <SocketProvider key={user.id}>
       <ChatProvider>
         <div className="flex h-full flex-col">
           <ConnectionBanner />
